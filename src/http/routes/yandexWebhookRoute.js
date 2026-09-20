@@ -1,5 +1,5 @@
 const express = require('express');
-const { extractUpdates, normalizeUpdate } = require('../../services/yandex/incoming');
+const { describeUpdateShape, extractUpdates, normalizeUpdate } = require('../../services/yandex/incoming');
 
 function readSecret(headers) {
   return headers['x-webhook-secret'] || headers['x-channel-secret'] || headers['x-bot-secret'];
@@ -28,7 +28,10 @@ function createYandexWebhookRouter({ botService, dedupeStore, webhookSecret }) {
           dedupeStore.remember(dedupeKey);
           await botService.handleEvent(event);
         } catch (error) {
-          console.error('webhook.processing.failed', error);
+          // Log only field presence, never webhook values or credentials.
+          console.error('webhook.processing.failed', error, {
+            updateShape: describeUpdateShape(update)
+          });
         }
       }
     });

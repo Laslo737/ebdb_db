@@ -34,23 +34,35 @@ function shouldRetryWithoutButtons(error) {
   return error?.status === 400 && error?.data?.code === 'invalid_request';
 }
 
+function normalizeReplyTarget(target = {}) {
+  target = target || {};
+  const keys = ['chat_id', 'user_id', 'login'];
+  for (const key of keys) {
+    const value = target[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return { [key]: value };
+    }
+  }
+  return null;
+}
+
 class YandexSender {
   constructor(client) {
     this.client = client;
   }
 
   async reply(event, message) {
-    const target = event.replyTarget || {};
+    const target = normalizeReplyTarget(event.replyTarget);
+    if (!target) {
+      throw new Error('YANDEX_REPLY_TARGET_REQUIRED');
+    }
+
     const payload = {
       ...target,
       thread_id: event.threadId || undefined,
       payload_id: message.payloadId || `msg-${Date.now()}`,
       text: message.text
     };
-
-    if (event.chat?.type === 'private' && !target.login) {
-      throw new Error('YANDEX_LOGIN_REQUIRED');
-    }
 
     if (message.buttons?.length) {
       payload.suggest_buttons = mapButtons(message.buttons);
