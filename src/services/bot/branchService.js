@@ -79,6 +79,21 @@ function getTerritorySearchText(territory) {
   return String(territory?.name || '').trim();
 }
 
+function extractList(result) {
+  if (Array.isArray(result)) return result;
+  if (!result || typeof result !== 'object') return [];
+
+  for (const key of ['items', 'results', 'data', 'filials', 'branches']) {
+    if (Array.isArray(result[key])) return result[key];
+    if (result[key] && typeof result[key] === 'object') {
+      const nested = extractList(result[key]);
+      if (nested.length) return nested;
+    }
+  }
+
+  return [];
+}
+
 class BranchService {
   constructor(apiClient) {
     this.apiClient = apiClient;
@@ -185,14 +200,15 @@ class BranchService {
     if (directResult.length) return directResult;
 
     const all = await this.apiClient.getAllBranches();
-    return searchBranches(Array.isArray(all) ? all : [], query);
+    return searchBranches(extractList(all), query);
   }
 
   async tryDirectSearch(query) {
     try {
       const result = await this.apiClient.searchByAddressTt(query);
-      if (Array.isArray(result)) return result;
-      return result ? [result] : [];
+      const list = extractList(result);
+      if (list.length) return list;
+      return result?.id != null ? [result] : [];
     } catch {
       return [];
     }
